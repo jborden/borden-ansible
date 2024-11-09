@@ -1,0 +1,19 @@
+# When override var is given, you can override the value
+# in the command line as an option -e "<var>=<val>"
+# e.g. to override the default_instance_type use
+# ansible-playbook -e "instance_type=g4dn.xlarge"
+region: us-east-2
+ssh_security_group_name: ssh-allowed
+vpc_name: "borden-vlc"
+key_pair_name: "James_REMOTE_SSH_Key"
+vpc_cidr_block: "10.0.0.0/16"
+subnet_cidr_block: "10.0.1.0/24"
+aws_timeout: 60
+route_table_name: "borden-route-table-4AE57FD9-0E34-44E0-B68D-2DA10BF9C502"
+default_instance_type: t2.micro # override value is `instance_type`
+default_image_id: ami-022661f8a4a1b91cf # override value is `image_id`, this ami is AWS linux 2023
+#default_image_id: ami-04d21f3b4686e9d36 # AWS DLAMI
+default_instance_name_prefix: "borden-instance" # override value is `instance_name_prefix`
+gateway_name_tag: "borden-gateway"
+default_ssh_config_host: borden.ai # override value is `ssh_config_host`
+default_availability_zone: "us-east-2a" # override value is 'availability_zone'

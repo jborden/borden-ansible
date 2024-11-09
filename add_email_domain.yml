@@ -1,0 +1,23 @@
+---
+- hosts: localhost
+  vars_files: group_vars/default.yml
+  roles:
+    # for a domain, set the nameservers to point at
+    # For example, go to industrialsimplicity.com control panel
+    # https://ap.www.namecheap.com/domains/domaincontrolpanel/industrialsimplicity.com/domain
+    # ns1.digitalocean.com
+    # ns2.digitalocean.com
+    # ns3.digitalocean.com
+    # be sure to click on the green checkbox after entering the values!
+    # - setup_namecheap_dns # hopefully, this will be automated
+    # Setup the domain information on digitalocean
+    # you should create an:
+    # 'A' <hostname>.com domain which points to the droplet for the host
+    # 'A' mail.<hostname>.com domain which points to the droplet for the hsot mail.<hostname>.com
+    # 'MX' domain which points to mail.<hostname>.com
+    # - setup_digitalocean_dns # hopefully, this will be automated
+    #https://docs.ansible.com/ansible/latest/collections/community/digitalocean/digital_ocean_domain_module.html#ansible-collections-community-digitalocean-digital-ocean-domain-module
+    # - create_email_address
+    # - setup_rspam
+    # - setup_domain
+    # - restart_docker
