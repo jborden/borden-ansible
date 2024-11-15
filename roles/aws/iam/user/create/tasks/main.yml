@@ -1,0 +1,104 @@
+---
+- name: Read the encrypted credentials file
+  set_fact:
+    creds: "{{ lookup('ansible.builtin.unvault', credentials_yaml ) | from_yaml }}"
+
+- set_fact:
+    aws_creds: "{{ creds.aws | default({}) }}"
+    other_creds: "{{ creds | difference({'aws': aws_creds }) }}"
+
+- name: Set AWS root creds facts
+  set_fact:
+    root_access_key: "{{ aws_creds.root.access_key }}"
+    root_secret_access_key: "{{ aws_creds.root.secret_access_key }}"
+    current_iam_user: "{{ aws_creds[iam_user.name] | default('') }}"  
+    current_iam_user_access_key: "{{ aws_creds[iam_user.name].access_key | default('')}}"
+    current_iam_user_secret_access_key: "{{ aws_creds[iam_user.name].secret_access_key | default('')}}"
+    
+- name: Get AWS account ID
+  amazon.aws.aws_caller_info:
+    access_key: "{{ root_access_key }}"
+    secret_key: "{{ root_secret_access_key }}"
+  register: aws_caller_info
+
+- name: Get the current IAM user
+  amazon.aws.iam_user_info:
+    name: "{{ iam_user.name }}"
+    access_key: "{{ root_access_key }}"
+    secret_key: "{{ root_secret_access_key }}"
+  register: current_iam_users
+
+- name: Set the current_IAM user fact
+  set_fact:
+    this_iam_user_info:
+      "{{ current_iam_users.iam_users.0 }}"
+    
+- name: Create IAM User
+  amazon.aws.iam_user:
+    name: "{{ iam_user.name }}"
+    password: "{{ iam_user.password }}"
+    managed_policies: "{{ iam_user.managed_policies}}"
+    access_key: "{{ root_access_key }}"
+    secret_key: "{{ root_secret_access_key }}"
+    state: present
+  when:
+    - this_iam_user_info.user_name != iam_user.name
+  register: new_iam_user
+
+- name: Create Access Keys
+  amazon.aws.iam_access_key:
+    user_name: "{{ iam_user.name }}"
+    access_key: "{{ root_access_key }}"
+    secret_key: "{{ root_secret_access_key }}"
+    state: present
+    rotate_keys: true
+  register: new_iam_user_access_key
+  when:
+    - current_iam_user_access_key == ''
+    - current_iam_user_secret_access_key == ''
+
+- name: Set new IAM user facts
+  set_fact:
+    iam_user_creds: "{{ 
+      {
+        iam_user.name: {
+          'access_key': new_iam_user_access_key.access_key_id | default(current_iam_user_access_key),
+          'secret_access_key': new_iam_user_access_key.secret_access_key | default(current_iam_user_secret_access_key)
+        }
+      }
+    }}"
+    
+- name: Add a user to the creds
+  set_fact:
+    updated_creds: "{{ other_creds | combine({'aws': aws_creds | combine(iam_user_creds, recursive=True)}, recursive=True) }}"
+
+- name: Write creds to file
+  copy:
+    content: "{{ updated_creds | to_nice_yaml }}"
+    dest: "{{ credentials_yaml }}"
+    mode: '0600'
+  when:
+    - current_iam_user_access_key != iam_user_creds[iam_user.name].access_key
+    - current_iam_user_secret_access_key != iam_user_creds[iam_user.name].secret_access_key
+
+- name: Check if file is already encrypted
+  ansible.builtin.command:
+    cmd: "ansible-vault view --vault-password-file ~/.ansible/vault_password_file {{ credentials_yaml }}"
+  register: vault_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Encrypt the creds
+  ansible.builtin.command:
+    cmd: "ansible-vault encrypt --vault-password-file ~/.ansible/vault_password_file {{ credentials_yaml }}"
+  when: vault_check.rc != 0
+
+- name: Display login information
+  ansible.builtin.debug:
+    msg: |
+      AWS Account ID: {{ aws_caller_info.account }}
+      
+      Console Login URL: https://{{ aws_caller_info.account }}.signin.aws.amazon.com/console
+      Login Credentials:
+        IAM User Name: {{ iam_user.name }}
+        IAM Password: {{ iam_user.password }}

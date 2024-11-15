@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  connection: local
+
+  vars_files:
+    - group_vars/default.yml
+
+  roles:
+    - role: "{{ playbook_dir }}/roles/aws/iam/user/create"
