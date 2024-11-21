@@ -20,4 +20,4 @@
       when: vpc_id == '' or subnet_ids == ''
     - role: "{{ playbook_dir }}/roles/aws/kms_key"
     - role: "{{ playbook_dir }}/roles/aws/ec2/group"
-    - role: "{{ playbook_dir }}/roles/aws/ec2/start"
+    - role: "{{ playbook_dir }}/roles/aws/ec2/launch"

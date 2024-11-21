@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - group_vars/aws/default.yml
+
+  vars:
+   this_instance_type: "{{ instance_type | default(ec2.instance_type,true)}}"
+   this_name_prefix: "{{ instance_name_prefix | default(ec2.instance_name_prefix,true) }}"
+   instance_name: "{{ this_name_prefix + '-' + this_instance_type }}"
+
+  roles:
+    - role: "{{ playbook_dir }}/roles/aws/iam/user/creds"
+    - role: "{{ playbook_dir }}/roles/aws/vpc/read"
+    - role: "{{ playbook_dir }}/roles/aws/ec2/terminate"

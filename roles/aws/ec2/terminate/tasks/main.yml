@@ -1,0 +1,14 @@
+---
+- name: Terminate an EC2 instance
+  amazon.aws.ec2_instance:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    filters:
+      "tag:Name": "{{ instance_name }}"
+      "instance-state-name": "running"
+    region: "{{ region }}"
+    instance_type: "{{ this_instance_type  }}"
+    vpc_subnet_id: "{{ subnet_ids[0] }}"
+    security_group: "{{ ec2.ssh_security_group_name }}"
+    wait: true
+    state: absent

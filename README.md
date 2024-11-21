@@ -94,3 +94,9 @@ Optionally, you can define new instance_name and instance_type over the default 
 ```
 ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" -e "instance_name_prefix=webservice" -e "instance_type=t2.small" launch_ec2.yml
 ```
+
+### Terminate an EC2 instance
+
+```
+ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" terminate_ec2.yml
+```
