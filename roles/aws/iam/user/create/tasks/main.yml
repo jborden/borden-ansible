@@ -11,9 +11,9 @@
   set_fact:
     root_access_key: "{{ aws_creds.root.access_key }}"
     root_secret_access_key: "{{ aws_creds.root.secret_access_key }}"
-    current_iam_user: "{{ aws_creds[iam_user.name] | default('') }}"  
-    current_iam_user_access_key: "{{ aws_creds[iam_user.name].access_key | default('')}}"
-    current_iam_user_secret_access_key: "{{ aws_creds[iam_user.name].secret_access_key | default('')}}"
+    current_iam_user: "{{ aws_creds[iam.user.name] | default('') }}"
+    current_iam_user_access_key: "{{ aws_creds[iam.user.name].access_key | default('')}}"
+    current_iam_user_secret_access_key: "{{ aws_creds[iam.user.name].secret_access_key | default('')}}"
     
 - name: Get AWS account ID
   amazon.aws.aws_caller_info:
@@ -23,7 +23,7 @@
 
 - name: Get the current IAM user
   amazon.aws.iam_user_info:
-    name: "{{ iam_user.name }}"
+    name: "{{ iam.user.name }}"
     access_key: "{{ root_access_key }}"
     secret_key: "{{ root_secret_access_key }}"
   register: current_iam_users
@@ -35,19 +35,19 @@
     
 - name: Create IAM User
   amazon.aws.iam_user:
-    name: "{{ iam_user.name }}"
+    name: "{{ iam.user.name }}"
     password: "{{ iam_user.password }}"
     managed_policies: "{{ iam_user.managed_policies}}"
     access_key: "{{ root_access_key }}"
     secret_key: "{{ root_secret_access_key }}"
     state: present
   when:
-    - this_iam_user_info.user_name != iam_user.name
+    - this_iam_user_info.user_name != iam.user.name
   register: new_iam_user
 
 - name: Create Access Keys
   amazon.aws.iam_access_key:
-    user_name: "{{ iam_user.name }}"
+    user_name: "{{ iam.user.name }}"
     access_key: "{{ root_access_key }}"
     secret_key: "{{ root_secret_access_key }}"
     state: present
@@ -59,15 +59,19 @@
 
 - name: Set new IAM user facts
   set_fact:
+    # for downstream roles
+    access_key: "{{ new_iam_user_access_key.access_key_id | default(current_iam_user_access_key) }}"
+    secret_access_key: "{{ new_iam_user_access_key.secret_access_key | default(current_iam_user_secret_access_key) }}"
+    # For saving to file
     iam_user_creds: "{{ 
       {
-        iam_user.name: {
+        iam.user.name: {
           'access_key': new_iam_user_access_key.access_key_id | default(current_iam_user_access_key),
           'secret_access_key': new_iam_user_access_key.secret_access_key | default(current_iam_user_secret_access_key)
         }
       }
     }}"
-    
+
 - name: Add a user to the creds
   set_fact:
     updated_creds: "{{ other_creds | combine({'aws': aws_creds | combine(iam_user_creds, recursive=True)}, recursive=True) }}"
@@ -78,8 +82,8 @@
     dest: "{{ credentials_yaml }}"
     mode: '0600'
   when:
-    - current_iam_user_access_key != iam_user_creds[iam_user.name].access_key
-    - current_iam_user_secret_access_key != iam_user_creds[iam_user.name].secret_access_key
+    - current_iam_user_access_key != iam_user_creds[iam.user.name].access_key
+    - current_iam_user_secret_access_key != iam_user_creds[iam.user.name].secret_access_key
 
 - name: Check if file is already encrypted
   ansible.builtin.command:
@@ -93,6 +97,18 @@
     cmd: "ansible-vault encrypt --vault-password-file ~/.ansible/vault_password_file {{ credentials_yaml }}"
   when: vault_check.rc != 0
 
+- name: Create login YAML
+  set_fact:
+    login_information:
+      url: '{{ aws_caller_info.account }}.signin.aws.amazon.com/console'
+
+- name: Write Login information to aws_url.yml
+  copy:
+    content: "{{ login_information | to_nice_yaml }}"
+    dest: "aws_url.yml"
+    mode: '0600'
+
+
 - name: Display login information
   ansible.builtin.debug:
     msg: |
@@ -100,5 +116,5 @@
       
       Console Login URL: https://{{ aws_caller_info.account }}.signin.aws.amazon.com/console
       Login Credentials:
-        IAM User Name: {{ iam_user.name }}
-        IAM Password: {{ iam_user.password }}
+        IAM User Name: {{ iam.user.name }}
+        IAM Password: {{ iam.user.password }}

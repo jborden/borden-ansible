@@ -1,0 +1,61 @@
+---
+- name: Get the current public IP address
+  shell: curl ifconfig.me
+  register: shell_output
+      
+- set_fact:
+    local_ip: "{{ shell_output.stdout }}"
+      
+- ansible.builtin.debug:
+    var: local_ip
+
+- name: Get the current security group rules
+  amazon.aws.ec2_group_info:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    filters:
+      group-name: "{{ ec2.ssh_security_group_name }}"
+      vpc_id: "{{ vpc_id }}"
+  register: sg_info
+
+- name: Create a security group if it doesn't exist
+  amazon.aws.ec2_group:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    name: "{{ ec2.ssh_security_group_name }}"
+    description: Allow SSH from local machine
+    vpc_id: "{{ vpc_id }}"
+    rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: "{{ local_ip }}/32"
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: security_group
+  when: sg_info.security_groups | length == 0
+
+- name: Update the security group rules if local IP has changed
+  amazon.aws.ec2_group:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    name: "{{ ec2.ssh_security_group_name }}"
+    description: Allow SSH from local machine
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ region }}"
+    rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: "{{ local_ip }}/32"
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+    purge_rules: true
+  register: security_group
+  when: >
+    sg_info.security_groups | length > 0 and 
+    (sg_info.security_groups[0].ip_permissions[0].ip_ranges[0].cidr_ip | default('')) != local_ip

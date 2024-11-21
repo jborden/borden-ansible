@@ -1,0 +1,26 @@
+# When override var is given, you can override the value
+# in the command line as an option -e "<var>=<val>"
+# e.g. to override the default_instance_type use
+# ansible-playbook -e "instance_type=g4dn.xlarge"
+region: us-east-2
+aws_timeout: 60
+availability_zone: "us-east-2a"
+iam:
+  user:
+    name: 'james'
+    password: 'H3ll0w0rld20230105!'
+    managed_policies:
+      - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+      - arn:aws:iam::aws:policy/AmazonVPCFullAccess
+vpc:
+  name: "gelectric-webservice"
+  cidr_block: "10.0.0.0/16"
+  subnet_cidr_block: "10.0.1.0/24"
+  gateway_name_tag: "gelectric-gateway"
+  route_table_name: "gelectric-route-table-60E01DB6-030B-4832-8EF0-51E6665A5680"
+ec2:
+  instance_name_prefix: "gelectric-webservice"
+  instance_type: t2.micro
+  image_id: ami-0942ecd5d85baa812 
+  ssh_security_group_name: ssh-allowed
+  ssh_config_host: "gelectric-web"

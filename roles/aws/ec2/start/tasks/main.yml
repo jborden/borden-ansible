@@ -1,0 +1,57 @@
+---
+- name: Gather information about any currently running instance
+  amazon.aws.ec2_instance_info:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    filters:
+      "tag:Name": "{{ instance_name }}"
+  register: current_instance_info
+
+- name: print the current_instance_info
+  ansible.builtin.debug:
+    msg: |
+      current_instance_info: {{ current_instance_info.instances[0].state }}
+      
+- set_fact:
+    instance_running: "{{ current_instance_info.instances[0].state.name }} == 'running"
+  when: current_instance_info.instances | length > 0
+
+- name: Launch an EC2 instance
+  amazon.aws.ec2_instance:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    filters:
+      "tag:Name": "{{ instance_name }}"
+      "instance-state-name": "running"
+    region: "{{ region }}"
+    instance_type: "{{ this_instance_type  }}"
+    image_id: "{{ ec2.image_id }}"
+    vpc_subnet_id: "{{ subnet_ids[0] }}"
+    security_group: "{{ ec2.ssh_security_group_name }}"
+    key_name: "{{ kms_key_name }}"
+    name: "{{ instance_name }}"
+    wait: true
+    network:
+      assign_public_ip: true
+    exact_count: 1 # exactly this many should be running that match the filter tag
+    instance_initiated_shutdown_behavior: "terminate"
+  register: ec2_instance
+  when: not instance_running
+    
+- name: Get EC2 instance ID
+  set_fact:
+    instance_public_dns_name: "{{ ec2_instance.instances[0].public_dns_name | default(current_instance_info.instances[0].public_dns_name)}}"
+    instance_id: "{{ ec2_instance.instances[0].instance_id | default(current_instance_info.instances[0].instance_id) }}"
+
+- name: Add SSH config entry for instance to ~/.ssh/config
+  ansible.builtin.blockinfile:
+    marker_begin: "BEGIN {{ instance_name }}"
+    marker_end: "END {{ instance_name }}"
+    path: ~/.ssh/config
+    block: |
+      Host {{ ec2.ssh_config_host }}
+      User ec2-user
+      Hostname {{ instance_public_dns_name }}
+      IdentityFile {{ private_key_file.stat.path }}
+    prepend_newline: true

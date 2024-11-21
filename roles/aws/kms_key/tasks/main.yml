@@ -1,0 +1,48 @@
+---
+- set_fact:
+    kms_key_name: "{{ iam.user.name }}-remote-ssh-key"
+
+- name: Get information about the key pair
+  amazon.aws.ec2_key_info:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    names:
+      - "{{ kms_key_name }}"
+  register: key_info
+
+- name: Check if the private key file exists
+  stat:
+    path: "~/.ssh/{{ kms_key_name }}.pem"
+  register: private_key_file
+
+- name: Create a new SSH key pair
+  amazon.aws.ec2_key:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    name: "{{ kms_key_name }}"
+    region: "{{ region }}"
+  register: new_key
+  when: key_info.keypairs | length == 0
+
+- name: Save private key content to a file
+  copy:
+    content: "{{ new_key.key.private_key }}"
+    dest: "~/.ssh/{{ kms_key_name }}.pem"
+    mode: 0400
+  when: new_key.key.id is defined
+
+- name: Get the remote key pair fingerprint
+  set_fact:
+    remote_fingerprint: "{{ key_info.keypairs[0].key_fingerprint }}"
+  when:
+    - key_info.keypairs | length > 0
+
+- name: Get the local private key fingerprint
+  # per: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/verify-keys.html
+  shell: openssl pkcs8 -in ~/.ssh/{{ kms_key_name }}.pem -inform PEM -outform DER -topk8 -nocrypt | openssl sha1 -c
+  register: local_fingerprint
+  when:
+    - key_info.keypairs | length > 0
+    - key_info.keypairs[0].key_pair_id
+    - private_key_file.stat.exists

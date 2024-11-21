@@ -1,0 +1,23 @@
+---
+- name: Check AWS credentials presence
+  set_fact:
+    credentials_missing: >-
+      {{ 
+        (lookup('ansible.builtin.unvault', credentials_yaml) | from_yaml).aws[iam.user.name].access_key | default('') == '' or
+        (lookup('ansible.builtin.unvault', credentials_yaml) | from_yaml).aws[iam.user.name].secret_access_key | default('') == ''
+      }}
+      
+- include_role:
+    name: "{{ playbook_dir }}/roles/aws/iam/user/create"
+  when: credentials_missing
+    
+- name: Re-read credentials after potential creation
+  set_fact:
+    creds: "{{ lookup('ansible.builtin.unvault', credentials_yaml) | from_yaml }}"
+    
+- set_fact:
+    aws_creds: "{{ creds.aws | default({}) }}"
+
+- set_fact:
+    access_key: "{{ aws_creds[iam.user.name].access_key }}"
+    secret_key: "{{ aws_creds[iam.user.name].secret_access_key }}"

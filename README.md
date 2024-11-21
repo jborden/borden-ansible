@@ -77,8 +77,20 @@ Encrypt this file:
 ansible-vault encrypt --vault-password-file ~/.ansible/vault_password_file group_vars/credentials.yml
 ```
 
-### Setup webservice
+### Image ID
+
+To find the latest AMI ID, go to https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#AMICatalog
+
+Search for "DLAMI" for machine learning instances.
+
+### Launch an EC2 instance
 
 ```
-ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" provision_aws_webservice.yml
+ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" launch_ec2.yml
+```
+
+Optionally, you can define new instance_name and instance_type over the default ones provided in `group_vars/default.yml`
+
+```
+ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" -e "instance_name_prefix=webservice" -e "instance_type=t2.small" launch_ec2.yml
 ```

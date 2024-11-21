@@ -1,0 +1,74 @@
+---
+- name: Create VPC
+  amazon.aws.ec2_vpc_net:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    name: "{{ vpc.name }}"
+    cidr_block: "{{ vpc.cidr_block }}"
+    dns_support: yes
+    dns_hostnames: yes
+    state: present
+    region: "{{ region }}"
+  register: vpc_result
+  timeout: "{{ aws_timeout }}"
+  
+- name: Create Subnet
+  amazon.aws.ec2_vpc_subnet:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    cidr: "{{ vpc.subnet_cidr_block }}"
+    state: present
+    region: "{{ region }}"
+    az: "{{ availability_zone }}"
+  register: subnet_result
+  timeout: "{{ aws_timeout }}"
+
+- name: Create Internet Gateway
+  amazon.aws.ec2_vpc_igw:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    state: present
+    region: "{{ region }}"
+    tags:
+      name: "{{ vpc.gateway_name_tag }}"
+  register: vpc_igw_result
+  timeout: "{{ aws_timeout }}"
+
+- name: Get Route Table
+  amazon.aws.ec2_vpc_route_table_info:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    filters:
+      "tag:Name": "{{ vpc.route_table_name }}"
+    region: "{{ region }}"
+  register: public_route_table
+
+- name: Create Route Table
+  amazon.aws.ec2_vpc_route_table:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    subnets:
+      - "{{ subnet_result.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ vpc_igw_result.gateway_id }}"
+      - dest: ::/0
+        gateway_id: "{{ vpc_igw_result.gateway_id }}"
+    tags:
+      Name: "{{ vpc.route_table_name }}"
+    state: present
+    region: "{{ region }}"
+  timeout: "{{ aws_timeout }}"
+  when: existing_route_table_info is not defined or 
+        public_route_table[0].id | length == 0
+
+- set_fact:
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    subnet_ids: "{{ subnet_result.subnet.id }}"
+    
+- name: Display VPC and Subnet IDs
+  debug:
+    msg: "VPC ID: {{ vpc_result.vpc.id }}, Subnet ID: {{ subnet_result.subnet.id }}"
