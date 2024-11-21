@@ -8,7 +8,7 @@ availability_zone: "us-east-2a"
 iam:
   user:
     name: 'james'
-    password: 'H3ll0w0rld20230105!'
+    password: ''
     managed_policies:
       - arn:aws:iam::aws:policy/AmazonEC2FullAccess
       - arn:aws:iam::aws:policy/AmazonVPCFullAccess

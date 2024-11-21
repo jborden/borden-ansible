@@ -1,3 +1,5 @@
 group_vars/default.yml
 group_vars/credentials.yml
 aws_url.yml
+*default.yml
+!group_vars/aws/template_default.yml
