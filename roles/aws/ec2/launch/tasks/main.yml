@@ -8,14 +8,8 @@
       "tag:Name": "{{ instance_name }}"
   register: current_instance_info
 
-- name: print the current_instance_info
-  ansible.builtin.debug:
-    msg: |
-      current_instance_info: {{ current_instance_info.instances[0].state }}
-      
 - set_fact:
-    instance_running: "{{ current_instance_info.instances[0].state.name }} == 'running"
-  when: current_instance_info.instances | length > 0
+        instance_running: "{{ (current_instance_info.instances[0].state.name | default('')) == 'running' }}"
 
 - name: Launch an EC2 instance
   amazon.aws.ec2_instance:
@@ -38,7 +32,13 @@
     instance_initiated_shutdown_behavior: "terminate"
   register: ec2_instance
   when: not instance_running
-    
+
+- name: print current_instance_info
+  ansible.builtin.debug:
+    msg: |
+      current_instance_info: {{ current_instance_info }}
+      instance_running: {{ instance_running }}
+
 - name: Get EC2 instance ID
   set_fact:
     instance_public_dns_name: "{{ ec2_instance.instances[0].public_dns_name | default(current_instance_info.instances[0].public_dns_name)}}"

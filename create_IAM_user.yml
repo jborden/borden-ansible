@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+  connection: local
+  
+  vars_files:
+    - group_vars/aws/default.yml
+
+  roles:
+    - role: "{{ playbook_dir }}/roles/aws/iam/user/creds"
+    - role: "{{ playbook_dir }}/roles/aws/iam/user/create"
+      when: access_key == '' or secret_key == ''

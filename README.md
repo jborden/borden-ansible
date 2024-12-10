@@ -77,14 +77,23 @@ Encrypt this file:
 ansible-vault encrypt --vault-password-file ~/.ansible/vault_password_file group_vars/credentials.yml
 ```
 
-### Image ID
+### Create an IAM User
+
+Before running other playbooks, you will first need to create an IAM User with the required credentials.
+
+```
+ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" create_IAM_user.yml
+```
+
+This will populate the encrypted `credentials_yaml` file (in this case, `group_vars/credentials.yml`) with the user specified in the `group_vars/aws/default.yml` file.
+
+### Launch an EC2 instance
+
+#### Image ID
 
 To find the latest AMI ID, go to https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#AMICatalog
 
 Search for "DLAMI" for machine learning instances.
-
-### Launch an EC2 instance
-
 ```
 ansible-playbook --vault-password-file ~/.ansible/vault_password_file -e "credentials_yaml=group_vars/credentials.yml" launch_ec2.yml
 ```

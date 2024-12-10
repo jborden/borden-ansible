@@ -10,64 +10,64 @@
 - name: Set AWS root creds facts
   set_fact:
     root_access_key: "{{ aws_creds.root.access_key }}"
-    root_secret_access_key: "{{ aws_creds.root.secret_access_key }}"
+    root_secret_key: "{{ aws_creds.root.secret_key }}"
     current_iam_user: "{{ aws_creds[iam.user.name] | default('') }}"
     current_iam_user_access_key: "{{ aws_creds[iam.user.name].access_key | default('')}}"
-    current_iam_user_secret_access_key: "{{ aws_creds[iam.user.name].secret_access_key | default('')}}"
+    current_iam_user_secret_key: "{{ aws_creds[iam.user.name].secret_key | default('')}}"
     
 - name: Get AWS account ID
   amazon.aws.aws_caller_info:
     access_key: "{{ root_access_key }}"
-    secret_key: "{{ root_secret_access_key }}"
+    secret_key: "{{ root_secret_key }}"
   register: aws_caller_info
 
 - name: Get the current IAM user
   amazon.aws.iam_user_info:
     name: "{{ iam.user.name }}"
     access_key: "{{ root_access_key }}"
-    secret_key: "{{ root_secret_access_key }}"
+    secret_key: "{{ root_secret_key }}"
   register: current_iam_users
 
-- name: Set the current_IAM user fact
+- name: Set the current_iam_users fact
   set_fact:
-    this_iam_user_info:
-      "{{ current_iam_users.iam_users.0 }}"
-    
+    this_iam_user_name:
+      "{{ current_iam_users.iam_users.0.name | default('') }}"
+
 - name: Create IAM User
   amazon.aws.iam_user:
     name: "{{ iam.user.name }}"
-    password: "{{ iam_user.password }}"
-    managed_policies: "{{ iam_user.managed_policies}}"
+    password: "{{ iam.user.password }}"
+    managed_policies: "{{ iam.user.managed_policies}}"
     access_key: "{{ root_access_key }}"
-    secret_key: "{{ root_secret_access_key }}"
+    secret_key: "{{ root_secret_key }}"
     state: present
   when:
-    - this_iam_user_info.user_name != iam.user.name
+    - this_iam_user_name != iam.user.name
   register: new_iam_user
 
 - name: Create Access Keys
   amazon.aws.iam_access_key:
     user_name: "{{ iam.user.name }}"
     access_key: "{{ root_access_key }}"
-    secret_key: "{{ root_secret_access_key }}"
+    secret_key: "{{ root_secret_key }}"
     state: present
     rotate_keys: true
   register: new_iam_user_access_key
   when:
     - current_iam_user_access_key == ''
-    - current_iam_user_secret_access_key == ''
+    - current_iam_user_secret_key == ''
 
 - name: Set new IAM user facts
   set_fact:
     # for downstream roles
-    access_key: "{{ new_iam_user_access_key.access_key_id | default(current_iam_user_access_key) }}"
-    secret_access_key: "{{ new_iam_user_access_key.secret_access_key | default(current_iam_user_secret_access_key) }}"
+    access_key: "{{ new_iam_user_access_key.access_key | default(current_iam_user_access_key) }}"
+    secret_key: "{{ new_iam_user_access_key.secret_key | default(current_iam_user_secret_key) }}"
     # For saving to file
     iam_user_creds: "{{ 
       {
         iam.user.name: {
           'access_key': new_iam_user_access_key.access_key_id | default(current_iam_user_access_key),
-          'secret_access_key': new_iam_user_access_key.secret_access_key | default(current_iam_user_secret_access_key)
+          'secret_key': new_iam_user_access_key.secret_access_key | default(current_iam_user_secret_key)
         }
       }
     }}"
@@ -83,7 +83,7 @@
     mode: '0600'
   when:
     - current_iam_user_access_key != iam_user_creds[iam.user.name].access_key
-    - current_iam_user_secret_access_key != iam_user_creds[iam.user.name].secret_access_key
+    - current_iam_user_secret_key != iam_user_creds[iam.user.name].secret_key
 
 - name: Check if file is already encrypted
   ansible.builtin.command:

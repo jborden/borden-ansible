@@ -1,0 +1,22 @@
+---
+- name: Read the encrypted credentials file
+  set_fact:
+    creds: "{{ lookup('ansible.builtin.unvault', credentials_yaml ) | from_yaml }}"
+
+- set_fact:
+    aws_creds: "{{ creds.aws | default({}) }}"
+    other_creds: "{{ creds | difference({'aws': aws_creds }) }}"
+
+- name: Set AWS root creds facts
+  set_fact:
+    root_access_key: "{{ aws_creds.root.access_key }}"
+    root_secret_access_key: "{{ aws_creds.root.secret_key }}"
+
+- name: Delete IAM User
+  amazon.aws.iam_user:
+    name: "{{ iam.user.name }}"
+    password: "{{ iam.user.password }}"
+    managed_policies: "{{ iam.user.managed_policies}}"
+    access_key: "{{ root_access_key }}"
+    secret_key: "{{ root_secret_access_key }}"
+    state: absent

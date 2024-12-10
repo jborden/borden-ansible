@@ -20,4 +20,4 @@
 
 - set_fact:
     access_key: "{{ aws_creds[iam.user.name].access_key }}"
-    secret_key: "{{ aws_creds[iam.user.name].secret_access_key }}"
+    secret_key: "{{ aws_creds[iam.user.name].secret_key }}"
